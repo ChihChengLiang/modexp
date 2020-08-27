@@ -29,7 +29,7 @@ describe("ModExp", function () {
         contract = await factory.deploy();
     });
 
-    it("modexp 1", async function () {
+    it("modexp 1: Naive Solidity", async function () {
         const [result] = await contract.modexp(3);
         assert.equal(result, MODEXP_3);
         const costs: number[] = [];
@@ -40,7 +40,7 @@ describe("ModExp", function () {
         reportCost(costs);
     });
 
-    it("modexp 2", async function () {
+    it("modexp 2: Naive inline assembly", async function () {
         const [result] = await contract.modexp2(3);
         assert.equal(result, MODEXP_3);
         const costs: number[] = [];
@@ -51,7 +51,7 @@ describe("ModExp", function () {
         reportCost(costs);
     });
 
-    it("modexp 3", async function () {
+    it("modexp 3: Loop unroll", async function () {
         const [result] = await contract.modexp3(3);
         assert.equal(result, MODEXP_3);
         const costs: number[] = [];
@@ -62,7 +62,7 @@ describe("ModExp", function () {
         reportCost(costs);
     });
 
-    it("modexp 4", async function () {
+    it("modexp 4: Minor optimize", async function () {
         const [result] = await contract.modexp4(3);
         assert.equal(result, MODEXP_3);
         const costs: number[] = [];
@@ -73,7 +73,7 @@ describe("ModExp", function () {
         reportCost(costs);
     });
 
-    it("modexp 5", async function () {
+    it("modexp 5: Unroll more", async function () {
         const [result] = await contract.modexp5(3);
         assert.equal(result, MODEXP_3);
         const costs: number[] = [];
@@ -84,7 +84,7 @@ describe("ModExp", function () {
         reportCost(costs);
     });
 
-    it("modexp 6", async function () {
+    it("modexp 6: Remove if statement", async function () {
         const [result] = await contract.modexp6(3);
         assert.equal(result, MODEXP_3);
         const costs: number[] = [];
@@ -95,7 +95,7 @@ describe("ModExp", function () {
         reportCost(costs);
     });
 
-    it("modexp 7", async function () {
+    it("modexp 7: Reproduce historical result", async function () {
         const [result] = await contract.modexp7(3);
         assert.equal(result, MODEXP_3);
         const costs: number[] = [];

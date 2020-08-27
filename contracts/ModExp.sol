@@ -2,6 +2,7 @@
 pragma solidity ^0.6.8;
 
 library ModExp {
+    // Naive Solidity implementation of square and multiply
     function modexp(uint256 x) internal pure returns (uint256) {
         uint256 sq = x;
         uint256 xx = 1;
@@ -17,6 +18,7 @@ library ModExp {
         return xx;
     }
 
+    // Improve with inline assembly
     function modexp2(uint256 x) internal pure returns (uint256 xx) {
         assembly {
             xx := 1
@@ -35,6 +37,7 @@ library ModExp {
         }
     }
 
+    // Use loop unrolling
     function modexp3(uint256 x) internal pure returns (uint256 xx) {
         assembly {
             xx := 1
@@ -65,6 +68,7 @@ library ModExp {
         }
     }
 
+    // Minor optimize
     function modexp4(uint256 x) internal pure returns (uint256 xx) {
         assembly {
             xx := 1
@@ -100,6 +104,7 @@ library ModExp {
         }
     }
 
+    // Unroll more
     function modexp5(uint256 x) internal pure returns (uint256 xx) {
         assembly {
             xx := 1
@@ -175,6 +180,7 @@ library ModExp {
         }
     }
 
+    // Remove if statement
     function modexp6(uint256 x) internal pure returns (uint256 xx) {
         assembly {
             xx := 1
@@ -213,6 +219,8 @@ library ModExp {
         }
     }
 
+    // Reproduce historical result
+    // https://github.com/ethereum/serpent/blob/develop/examples/ecc/modexp.se
     function modexp7(uint256 x) internal pure returns (uint256 xx) {
         assembly {
             xx := 1
