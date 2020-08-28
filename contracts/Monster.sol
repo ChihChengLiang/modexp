@@ -5,6 +5,7 @@ contract Monster {
         gasCost = gasCost - gasleft();
     }
 
+    // Run code_gen function in modexp.py to get all the operation for each bit
     function modexp(uint256 x) internal pure returns (uint256 xx) {
         assembly {
             xx := 1
