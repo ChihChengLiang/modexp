@@ -7,3 +7,14 @@ def modexp(x):
     4407920970296243842837207485651524041948558517760411303933
     """
     return pow(x, (n + 1) // 4, n)
+
+
+
+def code_gen():
+    for i in bin(0xc19139cb84c680a6e14116da060561765e05aa45a1c72a34f082305b61f3f52)[2:]:
+        if i == "0":
+            print("xx:= mulmod(xx, xx, n)")
+        else:
+            print("xx:= mulmod(mulmod(xx, xx, n), x, n)")
+
+code_gen()
