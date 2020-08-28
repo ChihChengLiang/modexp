@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.6.8;
+
 contract Monster {
     function test_modexp(uint256 x) public view returns (uint256 xx, uint256 gasCost) {
         gasCost = gasleft();
