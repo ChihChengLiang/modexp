@@ -154,3 +154,29 @@ describe("ModExp Monster code", function () {
         reportCost(costs);
     });
 });
+
+describe("ModExp AddChainLong", function () {
+    it("modexp 9: add chain long", async function () {
+        const accounts = await ethers.getSigners();
+        const factory = await ethers.getContractFactory("AddChainLong", accounts[0]);
+        const contract = await factory.deploy();
+        const receipt = await contract.deployTransaction.wait();
+        console.log("Deployment gas", receipt.gasUsed.toString());
+
+        const randomBytes: Uint8Array[] = [];
+
+        for (let i = 0; i < 16; i++) {
+            randomBytes.push(ethers.utils.randomBytes(32));
+        }
+
+        const [result] = await contract.test_modexp(3);
+        assert.equal(result, MODEXP_3);
+        const costs: number[] = [];
+        for (const input of randomBytes) {
+            const [output, cost] = await contract.test_modexp(input);
+            assert.equal(output, modexp(input), "Mismatch output");
+            costs.push(Number(cost));
+        }
+        reportCost(costs);
+    });
+});
