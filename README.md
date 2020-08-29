@@ -8,6 +8,8 @@
 
   ModExp
 Deployment gas 628448
+Avg cost 13750
+    ✓ baseline: Calling EIP-198 precompile (426ms)
 Avg cost 38673
     ✓ modexp 1: Naive Solidity (1203ms)
 Avg cost 30470
