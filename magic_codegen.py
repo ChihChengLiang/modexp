@@ -99,14 +99,14 @@ def code_gen_stack_magic():
             distance_n = list(reversed(prev_stack_vars)).index('n')
             if distance_n > 15:
                 raise Exception("unlucky bit pattern, no 'n' within range to DUP. Need to mload, unhandled")
-            # add 'n', by duplicating last 'n' value")
+            # add 'n', by duplicating last 'n' value
             contract.dup(distance_n+1)
             prev_stack_vars.append('n')
 
             distance_x = list(reversed(prev_stack_vars)).index('x')
             if distance_x > 15:
                 raise Exception("unlucky bit pattern, no 'x' within range to DUP. Need to mload, unhandled")
-            # add 'x', by duplicating last 'x' value")
+            # add 'x', by duplicating last 'x' value
             contract.dup(distance_x+1)
             prev_stack_vars.append('x')
 
@@ -114,10 +114,9 @@ def code_gen_stack_magic():
         distance_n = list(reversed(prev_stack_vars)).index('n')
         if distance_n > 15:
             raise Exception("unlucky bit pattern, no 'n' within range to DUP. Need to mload, unhandled")
-        # add 'n', by duplicating last 'n' value")
+        # add 'n', by duplicating last 'n' value
         contract.dup(distance_n+1)
         prev_stack_vars.append('n')
-
 
     print(f"prepared stack size: {len(prev_stack_vars)}")
 
@@ -138,8 +137,8 @@ def code_gen_stack_magic():
 
     # stack: x n xx
 
-    # done working through stack")
-    # get stack back to normal, with result in stack 0")
+    # done working through stack
+    # get stack back to normal, with result in stack 0
     contract.swap(2)  # stack: xx n x
 
     contract.pop().pop()  # stack: xx
