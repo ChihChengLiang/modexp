@@ -43,6 +43,17 @@ describe("ModExp", function () {
             randomBytes.push(ethers.utils.randomBytes(32));
         }
     });
+    it("baseline: Calling EIP-198 precompile", async function () {
+        const [result] = await contract.baseline(3);
+        assert.equal(result, MODEXP_3);
+        const costs: number[] = [];
+        for (const input of randomBytes) {
+            const [output, cost] = await contract.baseline(input);
+            assert.equal(output, modexp(input), "Mismatch output");
+            costs.push(Number(cost));
+        }
+        reportCost(costs);
+    });
 
     it("modexp 1: Naive Solidity", async function () {
         const [result] = await contract.modexp(3);

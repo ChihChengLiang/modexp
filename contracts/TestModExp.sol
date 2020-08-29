@@ -4,6 +4,12 @@ pragma solidity ^0.6.8;
 import { ModExp } from "./ModExp.sol";
 
 contract TestModExp {
+    function baseline(uint256 x) public view returns (uint256 xx, uint256 gasCost) {
+        gasCost = gasleft();
+        xx = ModExp.baseline(x);
+        gasCost = gasCost - gasleft();
+    }
+
     function modexp(uint256 x) public view returns (uint256 xx, uint256 gasCost) {
         gasCost = gasleft();
         xx = ModExp.modexp(x);
