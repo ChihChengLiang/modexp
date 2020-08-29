@@ -25,7 +25,13 @@ def check_selector(contract: Contract, signature4bytes: str, dest_label: str) ->
     )
 
 
-def code_gen_stack_magic():
+def get_function_selector(function_signature: str) -> str:
+    code = Web3.keccak(function_signature.encode()).hex()[:10]
+    print(f"function {function_signature} = {code}")
+    return code
+
+
+def code_gen_stack_magic(return_gas=False):
     # VERY experimental, untested. Just a code-golf idea. By @protolambda
     # needs some work to utilize in solidity. DUP opcodes are great, but a problem to embed
 
@@ -60,12 +66,12 @@ def code_gen_stack_magic():
 
     contract = Contract()
 
-    function_signature = 'modexp(uint256)'
-    function_selector = Web3.keccak(function_signature.encode()).hex()[:10]
-    print(f'function: {function_signature} selector: {function_selector}')
-    check_selector(contract, function_selector, "start")
+    check_selector(contract, get_function_selector('modexp(uint256)'), "start")
 
     contract.label("start")
+
+    if return_gas:
+        contract.gas()  # stack: <pre-gas>
 
     # N = 0x30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47
     # (N + 1) / 4 = 0xc19139cb84c680a6e14116da060561765e05aa45a1c72a34f082305b61f3f52
@@ -143,12 +149,31 @@ def code_gen_stack_magic():
     contract.swap(2)  # stack: xx n x
 
     contract.pop().pop()  # stack: xx
-    contract.push(0)      # stack: xx 0
-    contract.mstore()     # stack: (empty). Memory[0]: xx
-    # Return 32 bytes from memory
-    contract.push(0x20)
-    contract.push(0x00)
-    contract.return_()
+
+    if return_gas:
+        # stack is actually: <pre-gas> xx
+        contract.gas()   # stack: <pre-gas> <result> <post-gas>
+        contract.dup(3)  # stack: <pre-gas> <result> <post-gas> <pre-gas>
+        contract.sub()   # stack: <pre-gas> <result> <gas diff>
+        contract.swap(2).pop()  # stack: <gas diff> <result>
+
+        contract.push(0)      # stack: <gas diff> <result> 0
+        contract.mstore()     # stack: <gas diff>. Memory[0]: <result>
+
+        contract.push(0x20)   # stack: <gas diff> 32
+        contract.mstore()     # stack: (empty). Memory[0]: <result>, Memory[1]: <gas diff>
+
+        # Return 64 bytes from memory
+        contract.push(0x40)
+        contract.push(0x00)
+        contract.return_()
+    else:
+        contract.push(0)      # stack: xx 0
+        contract.mstore()     # stack: (empty). Memory[0]: xx
+        # Return 32 bytes from memory
+        contract.push(0x20)
+        contract.push(0x00)
+        contract.return_()
 
     print(contract.create_tx_data())
     return contract
@@ -166,19 +191,41 @@ ABI = [
     }
 ]
 
+ABI_RETURN_GAS = [
+    {
+        "constant": True,
+        "inputs": [{"name": "input", "type": "uint256"}],
+        "name": "modexp",
+        "outputs": [{"name": "xx", "type": "uint256"}, {"name": "gas", "type": "uint256"}],
+        "payable": False,
+        "stateMutability": "pure",
+        "type": "function",
+    }
+]
+
 
 def build_contract():
-    contract = code_gen_stack_magic()
+    debug_gas = False
+    contract = code_gen_stack_magic(debug_gas)
+    abi = ABI_RETURN_GAS if debug_gas else ABI
 
     w3 = Web3(EthereumTesterProvider())
-    contract = w3.eth.contract(abi=ABI, bytecode=decode_hex(contract.create_tx_data()))
+    contract = w3.eth.contract(abi=abi, bytecode=decode_hex(contract.create_tx_data()))
     tx_hash = contract.constructor().transact()
     tx_receipt = w3.eth.waitForTransactionReceipt(tx_hash)
-    instance = w3.eth.contract(address=tx_receipt.contractAddress, abi=ABI)
+    instance = w3.eth.contract(address=tx_receipt.contractAddress, abi=abi)
 
-    output = instance.functions.modexp(3).call()
-    print(f'output: {output}')
-    assert output == 4407920970296243842837207485651524041948558517760411303933
+    def contract_modexp(x: int) -> int:
+        if debug_gas:
+            out, gas = instance.functions.modexp(x).call()
+            print(f"{x} -> {out}\ngas: {gas}")
+            return out
+        else:
+            out = instance.functions.modexp(x).call()
+            print(f"{x} -> {out}")
+            return out
+
+    assert contract_modexp(3) == 4407920970296243842837207485651524041948558517760411303933
 
     n = 0x30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47
 
@@ -189,9 +236,9 @@ def build_contract():
     rng = random.Random(123)
     random_cases = [rng.randrange(0, 2**256) for _ in range(test_count)]
     for x in random_cases:
-        output = instance.functions.modexp(x).call()
+        output = contract_modexp(x)
         expected = pymodexp(x)
-        print(f'x: {x}\noutput: {output}\nexpected: {expected}\n')
+        print(f'expected: {expected}\n')
         assert output == expected
 
 
