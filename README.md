@@ -27,4 +27,9 @@ Avg cost 26489
 Deployment gas 504279
 Avg cost 7133
     ✓ modexp 8: monster code (257ms)
+
+  ModExp AddChainLong
+Deployment gas 499965
+Avg cost 6744
+    ✓ modexp 9: add chain long (233ms)
 ```
