@@ -1,5 +1,27 @@
 from misc_crypto.utils.assembly import Contract
-from misc_crypto.poseidon.contract import check_selector, to_32bytes
+from web3 import Web3, EthereumTesterProvider
+from eth_utils import decode_hex
+
+
+def to_32bytes(x: int):
+    return x.to_bytes(32, "big")
+
+
+# adapted from poseidon contract helper func
+def check_selector(contract: Contract, signature4bytes: str, dest_label: str) -> None:
+    """
+    Check if the evm message selects the correct function's 4 bytes signature
+    """
+    (
+        contract.push(b"\x01" + b"\x00" * 28)
+            .push(0)
+            .calldataload()
+            .div()
+            .push(signature4bytes)
+            .eq()
+            .jmpi(dest_label)
+            .invalid()
+    )
 
 
 def code_gen_stack_magic():
@@ -37,8 +59,10 @@ def code_gen_stack_magic():
 
     contract = Contract()
 
-    # TODO: create 'modexp' function
-    check_selector(contract, "0xc4420fb4")  # poseidon(uint256[])
+    function_signature = 'modexp(uint256)'
+    function_selector = Web3.keccak(function_signature.encode()).hex()[:10]
+    print(f'function: {function_signature} selector: {function_selector}')
+    check_selector(contract, function_selector, "start")
 
     contract.label("start")
 
@@ -103,7 +127,7 @@ def code_gen_stack_magic():
 
     # done working through stack")
     # get stack back to normal, with result in stack 0")
-    contract.swap(3)  # stack: xx x n
+    contract.swap(2)  # stack: xx x n
 
     contract.pop().pop()  # stack: xx
     contract.push(0)      # stack: xx 0
@@ -129,10 +153,8 @@ ABI = [
     }
 ]
 
-def build_contract():
-    from web3 import Web3, EthereumTesterProvider
-    from eth_utils import decode_hex
 
+def build_contract():
     contract = code_gen_stack_magic()
 
     w3 = Web3(EthereumTesterProvider())
@@ -141,7 +163,9 @@ def build_contract():
     tx_receipt = w3.eth.waitForTransactionReceipt(tx_hash)
     instance = w3.eth.contract(address=tx_receipt.contractAddress, abi=ABI)
 
-    assert instance.functions.modexp(3).call() == 4407920970296243842837207485651524041948558517760411303933
+    output = instance.functions.modexp(3).call()
+    print(f'output: {output}')
+    assert output == 4407920970296243842837207485651524041948558517760411303933
 
 
 build_contract()
