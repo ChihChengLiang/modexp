@@ -1,3 +1,4 @@
 artifacts/
 cache/
 package-lock.json
+.github/
