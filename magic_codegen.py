@@ -66,18 +66,19 @@ def code_gen_stack_magic():
 
     contract.label("start")
 
+    # N = 0x30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47
+    # (N + 1) / 4 = 0xc19139cb84c680a6e14116da060561765e05aa45a1c72a34f082305b61f3f52
     bits = bin(0xc19139cb84c680a6e14116da060561765e05aa45a1c72a34f082305b61f3f52)[2:]
+
+    # load x
+    # [Selector (4)] [data1 (32)]
+    contract.push(0x04).calldataload()
 
     # load n
     contract.push('0x30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47')
 
-    # load x
-    # The function has a single array param param
-    # [Selector (4)] [Pointer (32)][Length (32)] [data1 (32)] ....
-    contract.push(0x44 + (0x20 * 1)).calldataload()
-
     # stack filling preparation
-    prev_stack_vars = ['n', 'x']
+    prev_stack_vars = ['x', 'n']
 
     # prepare stack first:
     for original_index, bit_value in reversed(list(enumerate(bits))):
@@ -103,13 +104,13 @@ def code_gen_stack_magic():
             if distance_x > 15:
                 raise Exception("unlucky bit pattern, no 'x' within range to DUP. Need to mload, unhandled")
             # add 'x', by duplicating last 'x' value")
-            contract.dup(distance_n+1)
+            contract.dup(distance_x+1)
             prev_stack_vars.append('x')
 
     print(f"prepared stack size: {len(prev_stack_vars)}")
 
-    # done preparing stack, now write the mulmod and dup operations to interpret this all")
-    # add initial xx value to the stack")
+    # done preparing stack, now write the mulmod and dup operations to interpret this all
+    # add initial xx value to the stack
     contract.push(to_32bytes(1))
 
     # work through stack next:
@@ -123,11 +124,11 @@ def code_gen_stack_magic():
             #                    stack: ... n x xx'
             contract.mulmod()  # stack: ... xx''
 
-    # stack: n x xx
+    # stack: x n xx
 
     # done working through stack")
     # get stack back to normal, with result in stack 0")
-    contract.swap(2)  # stack: xx x n
+    contract.swap(2)  # stack: xx n x
 
     contract.pop().pop()  # stack: xx
     contract.push(0)      # stack: xx 0
