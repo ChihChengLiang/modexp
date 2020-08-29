@@ -80,17 +80,20 @@ def code_gen_stack_magic():
     # stack filling preparation
     prev_stack_vars = ['x', 'n']
 
-    # prepare stack first:
+    # prepare stack
+    # The last preparations get consumed first, so iterate the bits in reverse order.
     for original_index, bit_value in reversed(list(enumerate(bits))):
         print(f"preparing bit: index: {original_index} value: {bit_value}")
-        # prepare case I: push 'n' to the stack
-        distance_n = list(reversed(prev_stack_vars)).index('n')
-        if distance_n > 15:
-            raise Exception("unlucky bit pattern, no 'n' within range to DUP. Need to mload, unhandled")
-        # add 'n', by duplicating last 'n' value")
-        contract.dup(distance_n+1)
-        prev_stack_vars.append('n')
 
+        # what is being prepared (works like the "monster" code):
+        # if i == "0":
+        #     print("xx:= mulmod(xx, xx, n)")
+        # else:
+        #     print("xx:= mulmod(mulmod(xx, xx, n), x, n)")
+        #
+
+        # reverse order: prepare mulmod(result, x, n) before preparing mulmod(xx, xx, n)
+        # the last thing gets consumed first.
         if bit_value == "1":
             # prepare case II: push 'n' to the stack, then push 'x' to the stack
             distance_n = list(reversed(prev_stack_vars)).index('n')
@@ -106,6 +109,15 @@ def code_gen_stack_magic():
             # add 'x', by duplicating last 'x' value")
             contract.dup(distance_x+1)
             prev_stack_vars.append('x')
+
+        # prepare case I: push 'n' to the stack
+        distance_n = list(reversed(prev_stack_vars)).index('n')
+        if distance_n > 15:
+            raise Exception("unlucky bit pattern, no 'n' within range to DUP. Need to mload, unhandled")
+        # add 'n', by duplicating last 'n' value")
+        contract.dup(distance_n+1)
+        prev_stack_vars.append('n')
+
 
     print(f"prepared stack size: {len(prev_stack_vars)}")
 
