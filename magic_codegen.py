@@ -1,6 +1,7 @@
 from misc_crypto.utils.assembly import Contract
 from web3 import Web3, EthereumTesterProvider
 from eth_utils import decode_hex
+import random
 
 
 def to_32bytes(x: int):
@@ -178,6 +179,20 @@ def build_contract():
     output = instance.functions.modexp(3).call()
     print(f'output: {output}')
     assert output == 4407920970296243842837207485651524041948558517760411303933
+
+    n = 0x30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47
+
+    def pymodexp(x: int) -> int:
+        return pow(x, (n + 1) // 4, n)
+
+    test_count = 30
+    rng = random.Random(123)
+    random_cases = [rng.randrange(0, 2**256) for _ in range(test_count)]
+    for x in random_cases:
+        output = instance.functions.modexp(x).call()
+        expected = pymodexp(x)
+        print(f'x: {x}\noutput: {output}\nexpected: {expected}\n')
+        assert output == expected
 
 
 build_contract()
