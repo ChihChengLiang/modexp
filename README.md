@@ -1,5 +1,22 @@
 # ModExp in Solidity
 
+![Node.js CI](https://github.com/ChihChengLiang/modexp/workflows/Node.js%20CI/badge.svg)
+
+The modular exponentiation is a function that calculates the math expression `a^b % n`. For example, let a=5, b=3, and c=4, the expression evaluates `5^3 % 4 = 125 % 4 = 1`.
+
+We explore the case that given the exponent `b` and the modulus `n` are fixed known numbers, how good we can perform in Solidity language. This is useful when we need to perform the hash to curve operation to validate the aggregated signature on chain.
+
+We use the parameters of BN254 curve throughout the examples. In its hash to curve operation, we check if an input `x` has a square root on the G1 subgroup. A modexp is calculated with exponent `(n+1)/4` and modulus `n` known before the contract is deployed.
+
+```python
+n = 0x30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47
+
+def modexp(x):
+    return pow(x, (n + 1) // 4, n)
+```
+
+## Test and Benchmark
+
 ```bash
 > npm run test
 
