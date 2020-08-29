@@ -32,15 +32,16 @@ def get_function_selector(function_signature: str) -> str:
 
 
 def code_gen_stack_magic(return_gas=False):
-    # VERY experimental, untested. Just a code-golf idea. By @protolambda
-    # needs some work to utilize in solidity. DUP opcodes are great, but a problem to embed
+    # VERY experimental, but passing some tests. Gas-golfed by @protolambda.
+    # Thanks to @ChihChengLiang for providing the contract bytecode builder util, and a good start (Monster.sol is 7133 gas)
+    # Needs some work to utilize in solidity. DUP opcodes are great, but a problem to embed
 
-    # TLDR from telegram:
+    # TLDR:
     # - push n and x on stack to get started
     # - lots of DUPN operations, preparing a stack of 472 copies (within max stack size, I think), ordered exactly to repeatedly call mulmod on.
     #   Since there are only two cases: (xx x n) and (xx xx n), with trailing stack items that can be prepared.
     # - keep running mulmod until the stack is back to normal. Sometimes you need to dup the previous result (the xx xx n argument case)
-    # - 472*3 (dup cost) + 362*8 (mulmod cost) = 5062 gas. Plus a little to put the result back in the function return data.
+    # - 472*3 (dup cost) + 362*8 (mulmod cost) = 5062 gas. Plus a little for start (put x and n on stack) costs.
 
     # solidity assembly docs:
     # mulmod(x, y, m) 	  	F 	(x * y) % m with arbitrary precision arithmetic
@@ -205,7 +206,7 @@ ABI_RETURN_GAS = [
 
 
 def build_contract():
-    debug_gas = False
+    debug_gas = True
     contract = code_gen_stack_magic(debug_gas)
     abi = ABI_RETURN_GAS if debug_gas else ABI
 
