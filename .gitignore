@@ -4,3 +4,6 @@ venv
 #Buidler files
 cache
 artifacts
+
+.python-version
+__pycache__/
