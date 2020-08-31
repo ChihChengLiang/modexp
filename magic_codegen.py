@@ -1,20 +1,41 @@
-from misc_crypto.utils.assembly import Contract
-from web3 import Web3, EthereumTesterProvider
-from eth_utils import decode_hex
 import random
+from typing import List, Sequence
+
+import pytest
+from eth_utils import decode_hex
+from misc_crypto.utils.assembly import Contract
+from web3 import EthereumTesterProvider, Web3
+
+n = 0x30644E72E131A029B85045B68181585D97816A916871CA8D3C208C16D87CFD47
 
 
 def to_32bytes(x: int):
     return x.to_bytes(32, "big")
 
 
-# adapted from poseidon contract helper func
-def check_selector(contract: Contract, signature4bytes: str, dest_label: str) -> None:
-    """
-    Check if the evm message selects the correct function's 4 bytes signature
-    """
-    (
-        contract.push(b"\x01" + b"\x00" * 28)
+def get_function_selector(function_signature: str) -> str:
+    return Web3.keccak(function_signature.encode()).hex()[:10]
+
+
+def pymodexp(x: int) -> int:
+    return pow(x, (n + 1) // 4, n)
+
+
+class ImprovedContract(Contract):
+    prev_stack_vars: List[str]
+
+    def init_stack_vars(self, init_stack_vars: Sequence[str]) -> None:
+        self.prev_stack_vars = []
+        for var in init_stack_vars:
+            self.prev_stack_vars.append(var)
+
+    # adapted from poseidon contract helper func
+    def check_selector(self, signature4bytes: str, dest_label: str) -> None:
+        """
+        Check if the evm message selects the correct function's 4 bytes signature
+        """
+        (
+            self.push(b"\x01" + b"\x00" * 28)
             .push(0)
             .calldataload()
             .div()
@@ -22,13 +43,21 @@ def check_selector(contract: Contract, signature4bytes: str, dest_label: str) ->
             .eq()
             .jmpi(dest_label)
             .invalid()
-    )
+        )
 
+    def try_dup(self, var: str):
+        distance = list(reversed(self.prev_stack_vars)).index(var)
+        if distance > 15:
+            raise Exception(
+                "unlucky bit pattern, no 'n' within range to DUP. Need to mload, unhandled"
+            )
+        # add 'n', by duplicating last 'n' value
+        self.dup(distance + 1)
+        self.prev_stack_vars.append(var)
 
-def get_function_selector(function_signature: str) -> str:
-    code = Web3.keccak(function_signature.encode()).hex()[:10]
-    print(f"function {function_signature} = {code}")
-    return code
+    @property
+    def stack_size(self):
+        return len(self.prev_stack_vars)
 
 
 def code_gen_stack_magic(return_gas=False):
@@ -65,9 +94,9 @@ def code_gen_stack_magic(return_gas=False):
     #      mulmod
     # out: xx
 
-    contract = Contract()
+    contract = ImprovedContract()
 
-    check_selector(contract, get_function_selector('modexp(uint256)'), "start")
+    contract.check_selector(get_function_selector("modexp(uint256)"), "start")
 
     contract.label("start")
 
@@ -76,22 +105,21 @@ def code_gen_stack_magic(return_gas=False):
 
     # N = 0x30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47
     # (N + 1) / 4 = 0xc19139cb84c680a6e14116da060561765e05aa45a1c72a34f082305b61f3f52
-    bits = bin(0xc19139cb84c680a6e14116da060561765e05aa45a1c72a34f082305b61f3f52)[2:]
+    bits = bin(0xC19139CB84C680A6E14116DA060561765E05AA45A1C72A34F082305B61F3F52)[2:]
 
     # load x
     # [Selector (4)] [data1 (32)]
     contract.push(0x04).calldataload()
 
     # load n
-    contract.push('0x30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47')
+    contract.push(str(hex(n)))
 
     # stack filling preparation
-    prev_stack_vars = ['x', 'n']
+    contract.init_stack_vars(["x", "n"])
 
     # prepare stack
     # The last preparations get consumed first, so iterate the bits in reverse order.
     for original_index, bit_value in reversed(list(enumerate(bits))):
-        print(f"preparing bit: index: {original_index} value: {bit_value}")
 
         # what is being prepared (works like the "monster" code):
         # if i == "0":
@@ -104,29 +132,13 @@ def code_gen_stack_magic(return_gas=False):
         # the last thing gets consumed first.
         if bit_value == "1":
             # prepare case II: push 'n' to the stack, then push 'x' to the stack
-            distance_n = list(reversed(prev_stack_vars)).index('n')
-            if distance_n > 15:
-                raise Exception("unlucky bit pattern, no 'n' within range to DUP. Need to mload, unhandled")
-            # add 'n', by duplicating last 'n' value
-            contract.dup(distance_n+1)
-            prev_stack_vars.append('n')
-
-            distance_x = list(reversed(prev_stack_vars)).index('x')
-            if distance_x > 15:
-                raise Exception("unlucky bit pattern, no 'x' within range to DUP. Need to mload, unhandled")
-            # add 'x', by duplicating last 'x' value
-            contract.dup(distance_x+1)
-            prev_stack_vars.append('x')
+            contract.try_dup("n")
+            contract.try_dup("x")
 
         # prepare case I: push 'n' to the stack
-        distance_n = list(reversed(prev_stack_vars)).index('n')
-        if distance_n > 15:
-            raise Exception("unlucky bit pattern, no 'n' within range to DUP. Need to mload, unhandled")
-        # add 'n', by duplicating last 'n' value
-        contract.dup(distance_n+1)
-        prev_stack_vars.append('n')
+        contract.try_dup("n")
 
-    print(f"prepared stack size: {len(prev_stack_vars)}")
+    print(f"prepared stack size: {contract.stack_size}")
 
     # done preparing stack, now write the mulmod and dup operations to interpret this all
     # add initial xx value to the stack
@@ -134,10 +146,9 @@ def code_gen_stack_magic(return_gas=False):
 
     # work through stack next:
     for i, v in enumerate(bits):
-        print(f"bit {i}, value {v}")
         # stack is prepared, just need to run the calculations.
         #                    stack: ....... n xx
-        contract.dup(1)    # stack: ....... n xx xx
+        contract.dup(1)  # stack: ....... n xx xx
         contract.mulmod()  # stack: ....... xx'
         if v == "1":
             #                    stack: ... n x xx'
@@ -153,30 +164,29 @@ def code_gen_stack_magic(return_gas=False):
 
     if return_gas:
         # stack is actually: <pre-gas> xx
-        contract.gas()   # stack: <pre-gas> <result> <post-gas>
+        contract.gas()  # stack: <pre-gas> <result> <post-gas>
         contract.dup(3)  # stack: <pre-gas> <result> <post-gas> <pre-gas>
-        contract.sub()   # stack: <pre-gas> <result> <gas diff>
+        contract.sub()  # stack: <pre-gas> <result> <gas diff>
         contract.swap(2).pop()  # stack: <gas diff> <result>
 
-        contract.push(0)      # stack: <gas diff> <result> 0
-        contract.mstore()     # stack: <gas diff>. Memory[0]: <result>
+        contract.push(0)  # stack: <gas diff> <result> 0
+        contract.mstore()  # stack: <gas diff>. Memory[0]: <result>
 
-        contract.push(0x20)   # stack: <gas diff> 32
-        contract.mstore()     # stack: (empty). Memory[0]: <result>, Memory[1]: <gas diff>
+        contract.push(0x20)  # stack: <gas diff> 32
+        contract.mstore()  # stack: (empty). Memory[0]: <result>, Memory[1]: <gas diff>
 
         # Return 64 bytes from memory
         contract.push(0x40)
         contract.push(0x00)
         contract.return_()
     else:
-        contract.push(0)      # stack: xx 0
-        contract.mstore()     # stack: (empty). Memory[0]: xx
+        contract.push(0)  # stack: xx 0
+        contract.mstore()  # stack: (empty). Memory[0]: xx
         # Return 32 bytes from memory
         contract.push(0x20)
         contract.push(0x00)
         contract.return_()
 
-    print(contract.create_tx_data())
     return contract
 
 
@@ -197,7 +207,10 @@ ABI_RETURN_GAS = [
         "constant": True,
         "inputs": [{"name": "input", "type": "uint256"}],
         "name": "modexp",
-        "outputs": [{"name": "xx", "type": "uint256"}, {"name": "gas", "type": "uint256"}],
+        "outputs": [
+            {"name": "xx", "type": "uint256"},
+            {"name": "gas", "type": "uint256"},
+        ],
         "payable": False,
         "stateMutability": "pure",
         "type": "function",
@@ -205,8 +218,11 @@ ABI_RETURN_GAS = [
 ]
 
 
-def build_contract():
-    debug_gas = True
+TEST_COUNT = 30
+
+
+@pytest.mark.parametrize("debug_gas", (False, True))
+def test_build_contract(debug_gas):
     contract = code_gen_stack_magic(debug_gas)
     abi = ABI_RETURN_GAS if debug_gas else ABI
 
@@ -216,31 +232,24 @@ def build_contract():
     tx_receipt = w3.eth.waitForTransactionReceipt(tx_hash)
     instance = w3.eth.contract(address=tx_receipt.contractAddress, abi=abi)
 
+    gases = []
+
     def contract_modexp(x: int) -> int:
         if debug_gas:
             out, gas = instance.functions.modexp(x).call()
-            print(f"{x} -> {out}\ngas: {gas}")
-            return out
+            gases.append(gas)
         else:
             out = instance.functions.modexp(x).call()
-            print(f"{x} -> {out}")
-            return out
+        return out
 
-    assert contract_modexp(3) == 4407920970296243842837207485651524041948558517760411303933
+    assert (
+        contract_modexp(3) == 4407920970296243842837207485651524041948558517760411303933
+    )
 
-    n = 0x30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47
-
-    def pymodexp(x: int) -> int:
-        return pow(x, (n + 1) // 4, n)
-
-    test_count = 30
     rng = random.Random(123)
-    random_cases = [rng.randrange(0, 2**256) for _ in range(test_count)]
+    random_cases = [rng.randrange(0, 2 ** 256) for _ in range(TEST_COUNT)]
+
     for x in random_cases:
-        output = contract_modexp(x)
-        expected = pymodexp(x)
-        print(f'expected: {expected}\n')
-        assert output == expected
-
-
-build_contract()
+        assert contract_modexp(x) == pymodexp(x)
+    if debug_gas:
+        print("Average gas", sum(gases) / len(gases))
