@@ -1,5 +1,5 @@
+n = 0x30644E72E131A029B85045B68181585D97816A916871CA8D3C208C16D87CFD47
 
-n = 0x30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47
 
 def modexp(x):
     """
@@ -9,12 +9,12 @@ def modexp(x):
     return pow(x, (n + 1) // 4, n)
 
 
-
 def code_gen():
-    for i in bin(0xc19139cb84c680a6e14116da060561765e05aa45a1c72a34f082305b61f3f52)[2:]:
+    for i in bin(0xC19139CB84C680A6E14116DA060561765E05AA45A1C72A34F082305B61F3F52)[2:]:
         if i == "0":
             print("xx:= mulmod(xx, xx, n)")
         else:
             print("xx:= mulmod(mulmod(xx, xx, n), x, n)")
+
 
 code_gen()

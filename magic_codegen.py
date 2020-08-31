@@ -148,7 +148,7 @@ def code_gen_stack_magic(return_gas=False):
     for i, v in enumerate(bits):
         # stack is prepared, just need to run the calculations.
         #                    stack: ....... n xx
-        contract.dup(1)  # stack: ....... n xx xx
+        contract.dup(1)  #   stack: ....... n xx xx
         contract.mulmod()  # stack: ....... xx'
         if v == "1":
             #                    stack: ... n x xx'
