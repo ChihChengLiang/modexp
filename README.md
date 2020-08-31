@@ -52,3 +52,10 @@ Deployment gas 499965
 Avg cost 6744
     ✓ modexp 9: add chain long (233ms)
 ```
+
+Test magic_codegen
+
+```
+pytest magic_codegen.py -s
+```
+Proto's magic codegen optimized the Monster code at bytecode level and has a gas cost 5075.
