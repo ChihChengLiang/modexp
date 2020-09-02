@@ -6,7 +6,8 @@ https://eips.ethereum.org/EIPS/eip-2046
 
 import math
 
-GQUADDIVISOR = 20
+GQUADDIVISOR_198 = 20
+GQUADDIVISOR_2565_OPTION2 = 3
 STATICCALL_BEFORE_2046 = 700
 STATICCALL_AFTER_2046 = 40
 
@@ -29,15 +30,24 @@ def mult_complexity_2565(x):
 gas_cost_now = (
     math.floor(mult_complexity_198(max(32, 32)))
     * ((n + 1) // 4).bit_length()
-    / GQUADDIVISOR
+    / GQUADDIVISOR_198
     + STATICCALL_BEFORE_2046
 )
-gas_cost_2565_and_2046 = (
+
+gas_cost_2565_option1_and_2046 = (
     max(100, math.floor(mult_complexity_2565(max(32, 32))))
     * ((n + 1) // 4).bit_length()
-    / GQUADDIVISOR
+    / GQUADDIVISOR_198
+    + STATICCALL_AFTER_2046
+)
+
+gas_cost_2565_option2_and_2046 = (
+    max(100, mult_complexity_2565(max(32, 32)))
+    * ((n + 1) // 4).bit_length()
+    / GQUADDIVISOR_2565_OPTION2
     + STATICCALL_AFTER_2046
 )
 
 print("Precompile cost now:", gas_cost_now)
-print("Precompile cost 2565 and 2046:", gas_cost_2565_and_2046)
+print("Precompile cost 2565-option-1 and 2046:", gas_cost_2565_option1_and_2046)
+print("Precompile cost 2565-option-2 and 2046:", gas_cost_2565_option2_and_2046)
